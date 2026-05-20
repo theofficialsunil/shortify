@@ -1,5 +1,5 @@
-import { BarChart3, Link2, MousePointerClick, PlusCircle } from "lucide-react";
 import Link from "next/link";
+import { BarChart3, Link2, MousePointerClick, PlusCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -37,7 +37,7 @@ export default function DashboardPage() {
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="mt-1 text-neutral-400">
+          <p className="mt-1 text-muted-foreground">
             Manage and monitor your shortened links.
           </p>
         </div>
@@ -55,41 +55,41 @@ export default function DashboardPage() {
           const Icon = stat.icon;
 
           return (
-            <Card
-              key={stat.title}
-              className="border-neutral-800 bg-neutral-950 text-white"
-            >
+            <Card key={stat.title}>
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
-                  <CardDescription className="text-neutral-400">
-                    {stat.title}
-                  </CardDescription>
-                  <Icon className="h-5 w-5 text-indigo-400" />
+                  <CardDescription>{stat.title}</CardDescription>
+                  <Icon className="h-5 w-5 text-indigo-500" />
                 </div>
                 <CardTitle className="text-3xl">{stat.value}</CardTitle>
               </CardHeader>
+
               <CardContent>
-                <p className="text-sm text-neutral-500">{stat.description}</p>
+                <p className="text-sm text-muted-foreground">
+                  {stat.description}
+                </p>
               </CardContent>
             </Card>
           );
         })}
       </div>
 
-      <Card className="border-neutral-800 bg-neutral-950 text-white">
+      <Card>
         <CardHeader>
           <CardTitle>Your Links</CardTitle>
-          <CardDescription className="text-neutral-400">
-            No links created yet.
-          </CardDescription>
+          <CardDescription>No links created yet.</CardDescription>
         </CardHeader>
+
         <CardContent>
-          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed border-neutral-800 py-16 text-center">
-            <Link2 className="mb-4 h-10 w-10 text-neutral-600" />
+          <div className="flex flex-col items-center justify-center rounded-lg border border-dashed py-16 text-center">
+            <Link2 className="mb-4 h-10 w-10 text-muted-foreground" />
+
             <h3 className="text-lg font-semibold">Create your first link</h3>
-            <p className="mt-1 text-sm text-neutral-500">
+
+            <p className="mt-1 text-sm text-muted-foreground">
               Shortened links will appear here.
             </p>
+
             <Link href="/dashboard/create" className="mt-6">
               <Button className="bg-indigo-600 hover:bg-indigo-700">
                 Create Link

@@ -25,13 +25,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 
 export default function HomePage() {
   const [longUrl, setLongUrl] = useState("");
@@ -60,15 +56,12 @@ export default function HomePage() {
 
     await navigator.clipboard.writeText(shortUrl);
     setCopied(true);
-
-    setTimeout(() => {
-      setCopied(false);
-    }, 2000);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-blue-50 text-gray-900 dark:from-black dark:via-neutral-950 dark:to-black dark:text-white">
-      <header className="border-b border-black/5 bg-white/70 backdrop-blur dark:border-neutral-800 dark:bg-black/80">
+    <main className="min-h-screen bg-background text-foreground">
+      <header className="border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-600">
@@ -80,14 +73,14 @@ export default function HomePage() {
           <nav className="flex items-center gap-3 md:gap-6">
             <Link
               href="#features"
-              className="hidden text-sm text-gray-600 hover:text-gray-900 dark:text-neutral-400 dark:hover:text-white md:block"
+              className="hidden text-sm text-muted-foreground hover:text-foreground md:block"
             >
               Features
             </Link>
 
             <Link
               href="/login"
-              className="hidden text-sm text-gray-600 hover:text-gray-900 dark:text-neutral-400 dark:hover:text-white md:block"
+              className="hidden text-sm text-muted-foreground hover:text-foreground md:block"
             >
               Login
             </Link>
@@ -96,7 +89,6 @@ export default function HomePage() {
               variant="outline"
               size="icon"
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-              className="border-gray-200 bg-white dark:border-neutral-800 dark:bg-neutral-950"
             >
               <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
               <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -112,11 +104,11 @@ export default function HomePage() {
       </header>
 
       <section className="mx-auto max-w-5xl px-6 pb-20 pt-16 text-center">
-        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600 shadow-lg shadow-indigo-200 dark:shadow-indigo-950">
+        <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-indigo-600">
           <Link2 className="h-8 w-8 text-white" />
         </div>
 
-        <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-indigo-100 bg-white px-4 py-2 text-sm text-indigo-700 shadow-sm dark:border-neutral-800 dark:bg-neutral-950 dark:text-indigo-300">
+        <div className="mb-4 inline-flex items-center gap-2 rounded-full border bg-card px-4 py-2 text-sm text-indigo-500 shadow-sm">
           <Sparkles className="h-4 w-4" />
           Smart URL shortener with analytics
         </div>
@@ -125,12 +117,12 @@ export default function HomePage() {
           Shorten, manage, and track every link
         </h1>
 
-        <p className="mx-auto mt-5 max-w-2xl text-lg text-gray-600 dark:text-neutral-400">
+        <p className="mx-auto mt-5 max-w-2xl text-lg text-muted-foreground">
           Create clean short links, add custom aliases, generate QR codes, and
           track link performance from one dashboard.
         </p>
 
-        <Card className="mx-auto mt-10 max-w-2xl border-0 bg-white text-left shadow-xl dark:border dark:border-neutral-800 dark:bg-neutral-950">
+        <Card className="mx-auto mt-10 max-w-2xl text-left shadow-xl">
           <CardHeader>
             <CardTitle>Create Short Link</CardTitle>
             <CardDescription>
@@ -147,16 +139,12 @@ export default function HomePage() {
                 placeholder="https://example.com/very-long-url"
                 value={longUrl}
                 onChange={(e) => setLongUrl(e.target.value)}
-                className="dark:border-neutral-800 dark:bg-black dark:text-white dark:placeholder:text-neutral-500"
               />
             </div>
 
             <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
               <CollapsibleTrigger asChild>
-                <Button
-                  variant="ghost"
-                  className="w-full justify-between dark:hover:bg-neutral-900"
-                >
+                <Button variant="ghost" className="w-full justify-between">
                   Advanced Options
                   <ChevronDown
                     className={`h-4 w-4 transition-transform ${
@@ -170,7 +158,7 @@ export default function HomePage() {
                 <div className="space-y-2">
                   <Label htmlFor="customAlias">Custom Alias</Label>
                   <div className="flex items-center gap-2">
-                    <span className="whitespace-nowrap text-sm text-gray-500 dark:text-neutral-400">
+                    <span className="whitespace-nowrap text-sm text-muted-foreground">
                       shortify.app/
                     </span>
                     <Input
@@ -178,10 +166,9 @@ export default function HomePage() {
                       placeholder="resume"
                       value={customAlias}
                       onChange={(e) => setCustomAlias(e.target.value)}
-                      className="dark:border-neutral-800 dark:bg-black dark:text-white dark:placeholder:text-neutral-500"
                     />
                   </div>
-                  <p className="text-sm text-gray-500 dark:text-neutral-500">
+                  <p className="text-sm text-muted-foreground">
                     Leave empty to auto-generate a short code.
                   </p>
                 </div>
@@ -196,22 +183,18 @@ export default function HomePage() {
             </Button>
 
             {shortUrl && (
-              <div className="rounded-xl border border-green-200 bg-green-50 p-5 dark:border-green-900/40 dark:bg-green-950/20">
-                <div className="mb-4 flex items-center gap-2 text-green-800 dark:text-green-400">
+              <div className="rounded-xl border bg-card p-5">
+                <div className="mb-4 flex items-center gap-2 text-green-500">
                   <CheckCircle2 className="h-5 w-5" />
                   <span className="font-medium">Your short link is ready</span>
                 </div>
 
                 <div className="flex gap-2">
-                  <Input
-                    value={shortUrl}
-                    readOnly
-                    className="font-mono dark:border-neutral-800 dark:bg-black dark:text-white"
-                  />
+                  <Input value={shortUrl} readOnly className="font-mono" />
 
                   <Button variant="outline" size="icon" onClick={handleCopy}>
                     {copied ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <CheckCircle2 className="h-4 w-4 text-green-500" />
                     ) : (
                       <Copy className="h-4 w-4" />
                     )}
@@ -226,11 +209,11 @@ export default function HomePage() {
                   </Button>
                 </div>
 
-                <div className="mt-5 flex flex-col items-center justify-center rounded-lg border bg-white p-6 dark:border-neutral-800 dark:bg-black">
-                  <div className="flex h-32 w-32 items-center justify-center rounded-lg bg-gray-100 dark:bg-neutral-900">
-                    <QrCode className="h-14 w-14 text-gray-400 dark:text-neutral-500" />
+                <div className="mt-5 flex flex-col items-center justify-center rounded-lg border bg-background p-6">
+                  <div className="flex h-32 w-32 items-center justify-center rounded-lg bg-muted">
+                    <QrCode className="h-14 w-14 text-muted-foreground" />
                   </div>
-                  <p className="mt-3 text-sm text-gray-600 dark:text-neutral-400">
+                  <p className="mt-3 text-sm text-muted-foreground">
                     QR code preview
                   </p>
                 </div>
@@ -265,18 +248,15 @@ export default function HomePage() {
             const Icon = feature.icon;
 
             return (
-              <Card
-                key={feature.title}
-                className="border-0 bg-white shadow-sm dark:border dark:border-neutral-800 dark:bg-neutral-950"
-              >
+              <Card key={feature.title}>
                 <CardHeader>
-                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-100 dark:bg-neutral-900">
-                    <Icon className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+                  <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-lg bg-indigo-500/10">
+                    <Icon className="h-6 w-6 text-indigo-500" />
                   </div>
                   <CardTitle className="text-lg">{feature.title}</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-600 dark:text-neutral-400">
+                  <p className="text-muted-foreground">
                     {feature.description}
                   </p>
                 </CardContent>
