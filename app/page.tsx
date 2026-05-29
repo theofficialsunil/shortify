@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { signOut, useSession } from "next-auth/react";
+import { useTheme } from "next-themes";
 import {
   BarChart3,
   CheckCircle2,
@@ -15,7 +17,6 @@ import {
   Sparkles,
   Sun,
 } from "lucide-react";
-import { useTheme } from "next-themes";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,7 +26,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -37,6 +42,7 @@ export default function HomePage() {
   const [copied, setCopied] = useState(false);
 
   const { theme, setTheme } = useTheme();
+  const { data: session, status } = useSession();
 
   function handleShorten() {
     if (!longUrl) return;
@@ -56,7 +62,10 @@ export default function HomePage() {
 
     await navigator.clipboard.writeText(shortUrl);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+
+    setTimeout(() => {
+      setCopied(false);
+    }, 2000);
   }
 
   return (
@@ -78,13 +87,6 @@ export default function HomePage() {
               Features
             </Link>
 
-            <Link
-              href="/login"
-              className="hidden text-sm text-muted-foreground hover:text-foreground md:block"
-            >
-              Login
-            </Link>
-
             <Button
               variant="outline"
               size="icon"
@@ -94,11 +96,42 @@ export default function HomePage() {
               <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
             </Button>
 
-            <Link href="/dashboard">
-              <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700">
-                Dashboard
+            {status === "loading" ? (
+              <Button size="sm" variant="outline" disabled>
+                Loading...
               </Button>
-            </Link>
+            ) : session ? (
+              <>
+                <Link href="/dashboard">
+                  <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700">
+                    Dashboard
+                  </Button>
+                </Link>
+
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => signOut({ callbackUrl: "/" })}
+                >
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="hidden text-sm text-muted-foreground hover:text-foreground md:block"
+                >
+                  Login
+                </Link>
+
+                <Link href="/signup">
+                  <Button size="sm" className="bg-indigo-600 hover:bg-indigo-700">
+                    Get Started
+                  </Button>
+                </Link>
+              </>
+            )}
           </nav>
         </div>
       </header>
@@ -138,7 +171,7 @@ export default function HomePage() {
                 type="url"
                 placeholder="https://example.com/very-long-url"
                 value={longUrl}
-                onChange={(e) => setLongUrl(e.target.value)}
+                onChange={(event) => setLongUrl(event.target.value)}
               />
             </div>
 
@@ -157,17 +190,22 @@ export default function HomePage() {
               <CollapsibleContent className="space-y-3 pt-3">
                 <div className="space-y-2">
                   <Label htmlFor="customAlias">Custom Alias</Label>
+
                   <div className="flex items-center gap-2">
                     <span className="whitespace-nowrap text-sm text-muted-foreground">
                       shortify.app/
                     </span>
+
                     <Input
                       id="customAlias"
                       placeholder="resume"
                       value={customAlias}
-                      onChange={(e) => setCustomAlias(e.target.value)}
+                      onChange={(event) =>
+                        setCustomAlias(event.target.value)
+                      }
                     />
                   </div>
+
                   <p className="text-sm text-muted-foreground">
                     Leave empty to auto-generate a short code.
                   </p>
@@ -255,6 +293,7 @@ export default function HomePage() {
                   </div>
                   <CardTitle className="text-lg">{feature.title}</CardTitle>
                 </CardHeader>
+
                 <CardContent>
                   <p className="text-muted-foreground">
                     {feature.description}
