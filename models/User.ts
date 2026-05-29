@@ -1,17 +1,38 @@
-import mongoose,{Schema,model,models} from "mongoose";
-import { unique } from "next/dist/build/utils";
+import mongoose, { Schema, model, models } from "mongoose";
 
 const UserSchema = new Schema(
-    {
-        name:String,
-        email:{
-            type:String,
-            required:true,
-            unique:true,
-        },
-        password:String,
+  {
+    name: {
+      type: String,
+      required: true,
+      trim: true,
     },
-    {timestamps : true}
+
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+    },
+
+    password: {
+      type: String,
+      default: null,
+    },
+
+    image: {
+      type: String,
+      default: null,
+    },
+
+    provider: {
+      type: String,
+      enum: ["credentials", "google"],
+      default: "credentials",
+    },
+  },
+  { timestamps: true }
 );
 
-export const User = models.User || model("User",UserSchema);
+export const User = models.User || model("User", UserSchema);
