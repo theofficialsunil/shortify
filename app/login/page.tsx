@@ -1,6 +1,12 @@
-import Link from "next/link";
-import {Link2 } from "lucide-react";
+"use client";
 
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
+import { Link2 } from "lucide-react";
+import { FaGithub } from "react-icons/fa";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -10,14 +16,54 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Field,
-  FieldGroup,
-  FieldLabel,
-} from "@/components/ui/field";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 
+type LoginForm = {
+  email: string;
+  password: string;
+};
+
 export default function LoginPage() {
+  const router = useRouter();
+
+  const [formData, setFormData] = useState<LoginForm>({
+    email: "",
+    password: "",
+  });
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  function handleChange(field: keyof LoginForm, value: string) {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  }
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    setIsLoading(true);
+
+    const result = await signIn("credentials", {
+      email: formData.email,
+      password: formData.password,
+      redirect: false,
+    });
+
+    setIsLoading(false);
+
+    if (result?.error) {
+      toast.error("Invalid email or password");
+      return;
+    }
+
+    toast.success("Logged in successfully");
+    router.push("/dashboard");
+    router.refresh();
+  }
+
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-6 py-12 text-foreground">
       <Card className="w-full max-w-md">
@@ -33,9 +79,9 @@ export default function LoginPage() {
         </CardHeader>
 
         <CardContent className="space-y-5">
-          <Button variant="outline" className="w-full">
-            {/* <Github className="mr-2 h-4 w-4" /> */}
-            Continue with GitHub
+          <Button type="button" variant="outline" className="w-full" disabled>
+            <FaGithub className="mr-2 h-4 w-4" />
+            Continue with GitHub later
           </Button>
 
           <div className="relative">
@@ -49,7 +95,7 @@ export default function LoginPage() {
             </div>
           </div>
 
-          <form className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <FieldGroup>
               <Field>
                 <FieldLabel htmlFor="email">Email</FieldLabel>
@@ -57,6 +103,10 @@ export default function LoginPage() {
                   id="email"
                   type="email"
                   placeholder="you@example.com"
+                  value={formData.email}
+                  onChange={(event) =>
+                    handleChange("email", event.target.value)
+                  }
                 />
               </Field>
 
@@ -66,12 +116,20 @@ export default function LoginPage() {
                   id="password"
                   type="password"
                   placeholder="••••••••"
+                  value={formData.password}
+                  onChange={(event) =>
+                    handleChange("password", event.target.value)
+                  }
                 />
               </Field>
             </FieldGroup>
 
-            <Button className="w-full bg-indigo-600 hover:bg-indigo-700">
-              Login
+            <Button
+              type="submit"
+              disabled={isLoading}
+              className="w-full bg-indigo-600 hover:bg-indigo-700"
+            >
+              {isLoading ? "Logging in..." : "Login"}
             </Button>
           </form>
 

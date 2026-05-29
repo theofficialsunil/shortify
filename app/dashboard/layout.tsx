@@ -2,10 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
 import {
   BarChart3,
   LayoutDashboard,
   Link2,
+  LogOut,
+  Map,
   PlusCircle,
   Search,
   Settings,
@@ -15,26 +18,25 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 
-export default function DashboardLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function DashboardLayout({ children }) {
   const pathname = usePathname();
 
   const navItems = [
     { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { path: "/dashboard/create", label: "Create Link", icon: PlusCircle },
+    { path: "/dashboard/links", label: "Links", icon: Link2 },
     { path: "/dashboard/analytics/1", label: "Analytics", icon: BarChart3 },
+    { path: "/dashboard/map", label: "Click Map", icon: Map },
   ];
 
-  function isActive(path: string) {
+  function isActive(path) {
     if (path === "/dashboard") return pathname === path;
     return pathname.startsWith(path);
   }
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      {/* Sidebar */}
       <aside className="fixed left-0 top-0 hidden h-screen w-64 flex-col border-r bg-card lg:flex">
         <div className="border-b p-6">
           <Link href="/" className="flex items-center gap-2">
@@ -67,7 +69,7 @@ export default function DashboardLayout({
           })}
         </nav>
 
-        <div className="border-t p-4">
+        <div className="space-y-1 border-t p-4">
           <Link
             href="/dashboard/settings"
             className="flex items-center gap-3 rounded-lg px-4 py-3 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
@@ -75,12 +77,22 @@ export default function DashboardLayout({
             <Settings className="h-5 w-5" />
             <span>Settings</span>
           </Link>
+
+          <button
+            type="button"
+            onClick={() => signOut({ callbackUrl: "/login" })}
+            className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          >
+            <LogOut className="h-5 w-5" />
+            <span>Logout</span>
+          </button>
         </div>
       </aside>
 
+      {/* Main */}
       <div className="lg:pl-64">
         <header className="sticky top-0 z-10 border-b bg-background/80 backdrop-blur">
-          <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center justify-between gap-4 px-6 py-4">
             <div className="relative w-full max-w-lg">
               <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground" />
               <Input placeholder="Search links..." className="pl-10" />
