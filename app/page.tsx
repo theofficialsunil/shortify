@@ -54,12 +54,11 @@ export default function HomePage() {
     }
 
     const code = customAlias || Math.random().toString(36).substring(2, 8);
-    setShortUrl(`http://localhost:3000/${code}`);
+    setShortUrl(`http://localhost:3000/s/${code}`);
   }
 
   async function handleCopy() {
     if (!shortUrl) return;
-
     await navigator.clipboard.writeText(shortUrl);
     setCopied(true);
 

@@ -1,4 +1,4 @@
-import mongoose, { Schema, model, models } from "mongoose";
+import { Schema, model, models } from "mongoose";
 
 const UserSchema = new Schema(
   {
@@ -6,6 +6,20 @@ const UserSchema = new Schema(
       type: String,
       required: true,
       trim: true,
+    },
+
+    username: {
+      type: String,
+      required: true,
+      unique: true,
+      lowercase: true,
+      trim: true,
+      index: true,
+    },
+
+    usernameSetupCompleted: {
+      type: Boolean,
+      default: false,
     },
 
     email: {

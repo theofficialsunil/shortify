@@ -1,9 +1,13 @@
 import bcrypt from "bcryptjs";
 
 import { connectDB } from "@/lib/db";
+import {
+  generateUniqueUsername,
+  generateUsernameFromEmail,
+} from "@/lib/username";
+import { formatZodError } from "@/lib/validation-error";
 import { User } from "@/models/User";
 import { signupSchema } from "@/validations/auth";
-import { formatZodError } from "@/lib/validation-error";
 
 export async function POST(request: Request) {
   try {
@@ -37,10 +41,21 @@ export async function POST(request: Request) {
       );
     }
 
+    const baseUsername = generateUsernameFromEmail(email);
+    const username = await generateUniqueUsername(
+      baseUsername,
+      async (username) => {
+        const existingUsername = await User.findOne({ username });
+        return Boolean(existingUsername);
+      }
+    );
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await User.create({
       name,
+      username,
+      usernameSetupCompleted: false,
       email,
       password: hashedPassword,
       provider: "credentials",
@@ -53,7 +68,9 @@ export async function POST(request: Request) {
       },
       { status: 201 }
     );
-  } catch {
+  } catch (error) {
+    console.error("SIGNUP_ERROR:", error);
+
     return Response.json(
       {
         success: false,

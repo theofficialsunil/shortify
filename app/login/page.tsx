@@ -42,27 +42,36 @@ export default function LoginPage() {
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  event.preventDefault();
 
-    setIsLoading(true);
+  setIsLoading(true);
 
-    const result = await signIn("credentials", {
-      email: formData.email,
-      password: formData.password,
-      redirect: false,
-    });
+  const result = await signIn("credentials", {
+    email: formData.email,
+    password: formData.password,
+    redirect: false,
+  });
 
-    setIsLoading(false);
+  setIsLoading(false);
 
-    if (result?.error) {
-      toast.error("Invalid email or password");
-      return;
-    }
-
-    toast.success("Logged in successfully");
-    router.push("/dashboard");
-    router.refresh();
+  if (result?.error) {
+    toast.error("Invalid email or password");
+    return;
   }
+
+  const response = await fetch("/api/user/me");
+  const data = await response.json();
+
+  toast.success("Logged in successfully");
+
+  if (data.success && data.data.usernameSetupCompleted === false) {
+    router.push("/onboarding/username");
+  } else {
+    router.push("/dashboard");
+  }
+
+  router.refresh();
+}
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-6 py-12 text-foreground">
