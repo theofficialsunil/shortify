@@ -15,6 +15,72 @@ const RESERVED_USER_ALIASES = [
     "admin",
 ];
 
+export async function GET() {
+  try {
+    const user = await getCurrentUser();
+
+    if (!user?.id) {
+      return Response.json(
+        {
+          success: false,
+          message: "Unauthorized",
+        },
+        { status: 401 }
+      );
+    }
+
+    await connectDB();
+
+    const links = await Link.find({ userId: user.id })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const formattedLinks = links.map((link) => {
+      const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+
+      const shortUrl =
+        link.linkType === "custom"
+          ? `${baseUrl}/s/${link.username}/${link.customAlias}`
+          : `${baseUrl}/s/${link.shortCode}`;
+
+      const isExpired = link.expiresAt
+        ? new Date(link.expiresAt) < new Date()
+        : false;
+
+      return {
+        id: link._id.toString(),
+        originalUrl: link.originalUrl,
+        shortCode: link.shortCode || null,
+        customAlias: link.customAlias || null,
+        username: link.username || null,
+        linkType: link.linkType,
+        shortUrl,
+        description: link.description,
+        expiresAt: link.expiresAt,
+        status: isExpired ? "expired" : link.status,
+        totalClicks: link.totalClicks,
+        lastClickedAt: link.lastClickedAt,
+        createdAt: link.createdAt,
+      };
+    });
+
+    return Response.json({
+      success: true,
+      data: formattedLinks,
+    });
+  } catch (error) {
+    console.error("GET_LINKS_ERROR:", error);
+
+    return Response.json(
+      {
+        success: false,
+        message: "Something went wrong",
+      },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: Request) {
     try {
         const user = await getCurrentUser();
