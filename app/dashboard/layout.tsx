@@ -50,7 +50,7 @@ export default function DashboardLayout({
     { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { path: "/dashboard/create", label: "Create Link", icon: PlusCircle },
     { path: "/dashboard/links", label: "Links", icon: Link2 },
-    { path: "/dashboard/analytics/1", label: "Analytics", icon: BarChart3 },
+    { path: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
     { path: "/dashboard/map", label: "Click Map", icon: Map },
   ];
 
