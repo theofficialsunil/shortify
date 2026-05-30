@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import QRCode from "qrcode";
 import {
   CheckCircle2,
   Copy,
@@ -20,7 +21,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Field, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import {
+  Field,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
@@ -74,7 +80,10 @@ export default function CreateLinkPage() {
   const [passwordProtected, setPasswordProtected] = useState(false);
   const [errors, setErrors] = useState<FormErrors>({});
   const [shortUrl, setShortUrl] = useState("");
-  const [createdLinkType, setCreatedLinkType] = useState<"short" | "custom" | "">("");
+  const [qrCodeUrl, setQrCodeUrl] = useState("");
+  const [createdLinkType, setCreatedLinkType] = useState<
+    "short" | "custom" | ""
+  >("");
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -134,6 +143,7 @@ export default function CreateLinkPage() {
 
     setIsLoading(true);
     setShortUrl("");
+    setQrCodeUrl("");
     setCreatedLinkType("");
 
     try {
@@ -159,9 +169,17 @@ export default function CreateLinkPage() {
           const apiErrors: FormErrors = {};
 
           data.errors.forEach((error) => {
-            if (error.field === "originalUrl") apiErrors.longUrl = error.message;
-            if (error.field === "customAlias") apiErrors.customAlias = error.message;
-            if (error.field === "password") apiErrors.password = error.message;
+            if (error.field === "originalUrl") {
+              apiErrors.longUrl = error.message;
+            }
+
+            if (error.field === "customAlias") {
+              apiErrors.customAlias = error.message;
+            }
+
+            if (error.field === "password") {
+              apiErrors.password = error.message;
+            }
           });
 
           setErrors(apiErrors);
@@ -176,8 +194,15 @@ export default function CreateLinkPage() {
         return;
       }
 
+      const qrDataUrl = await QRCode.toDataURL(data.data.shortUrl, {
+        width: 300,
+        margin: 2,
+      });
+
       setShortUrl(data.data.shortUrl);
+      setQrCodeUrl(qrDataUrl);
       setCreatedLinkType(data.data.linkType);
+
       toast.success("Short link created successfully");
     } catch {
       toast.error("Something went wrong");
@@ -198,6 +223,15 @@ export default function CreateLinkPage() {
     }, 2000);
   }
 
+  function handleDownloadQr() {
+    if (!qrCodeUrl) return;
+
+    const link = document.createElement("a");
+    link.href = qrCodeUrl;
+    link.download = "shortify-qr-code.png";
+    link.click();
+  }
+
   function resetForm() {
     setFormData({
       longUrl: "",
@@ -210,6 +244,7 @@ export default function CreateLinkPage() {
     setPasswordProtected(false);
     setErrors({});
     setShortUrl("");
+    setQrCodeUrl("");
     setCreatedLinkType("");
     setCopied(false);
   }
@@ -219,7 +254,8 @@ export default function CreateLinkPage() {
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Create Link</h1>
         <p className="mt-2 text-muted-foreground">
-          Create a short URL with optional custom alias, expiration, and password.
+          Create a short URL with optional custom alias, expiration, and
+          password.
         </p>
       </div>
 
@@ -241,7 +277,9 @@ export default function CreateLinkPage() {
                   type="url"
                   placeholder="https://example.com/very-long-url"
                   value={formData.longUrl}
-                  onChange={(event) => handleChange("longUrl", event.target.value)}
+                  onChange={(event) =>
+                    handleChange("longUrl", event.target.value)
+                  }
                 />
                 {errors.longUrl && (
                   <p className="text-sm text-destructive">{errors.longUrl}</p>
@@ -250,10 +288,12 @@ export default function CreateLinkPage() {
 
               <Field>
                 <FieldLabel htmlFor="customAlias">Custom Alias</FieldLabel>
+
                 <div className="flex items-center gap-2">
                   <span className="whitespace-nowrap rounded-md border bg-muted px-3 py-2 text-sm text-muted-foreground">
                     /s/username/
                   </span>
+
                   <Input
                     id="customAlias"
                     placeholder="my-github"
@@ -263,11 +303,15 @@ export default function CreateLinkPage() {
                     }
                   />
                 </div>
+
                 <FieldDescription>
                   Leave empty to generate a random short link like /s/a8xPq2z.
                 </FieldDescription>
+
                 {errors.customAlias && (
-                  <p className="text-sm text-destructive">{errors.customAlias}</p>
+                  <p className="text-sm text-destructive">
+                    {errors.customAlias}
+                  </p>
                 )}
               </Field>
 
@@ -285,6 +329,7 @@ export default function CreateLinkPage() {
 
               <Field>
                 <FieldLabel htmlFor="expiration">Expiration</FieldLabel>
+
                 <select
                   id="expiration"
                   value={formData.expiration}
@@ -320,6 +365,7 @@ export default function CreateLinkPage() {
               {passwordProtected && (
                 <Field>
                   <FieldLabel htmlFor="password">Password</FieldLabel>
+
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <Input
@@ -333,14 +379,17 @@ export default function CreateLinkPage() {
                       }
                     />
                   </div>
+
                   {errors.password && (
-                    <p className="text-sm text-destructive">{errors.password}</p>
+                    <p className="text-sm text-destructive">
+                      {errors.password}
+                    </p>
                   )}
                 </Field>
               )}
             </FieldGroup>
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <Button
                 type="submit"
                 disabled={isLoading}
@@ -374,6 +423,7 @@ export default function CreateLinkPage() {
               <CheckCircle2 className="h-5 w-5" />
               <CardTitle className="text-lg">Short link created</CardTitle>
             </div>
+
             <CardDescription>
               {createdLinkType === "custom"
                 ? "This is your user-scoped custom alias."
@@ -385,7 +435,12 @@ export default function CreateLinkPage() {
             <div className="flex gap-2">
               <Input value={shortUrl} readOnly className="font-mono" />
 
-              <Button type="button" variant="outline" size="icon" onClick={handleCopy}>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={handleCopy}
+              >
                 {copied ? (
                   <CheckCircle2 className="h-4 w-4 text-green-500" />
                 ) : (
@@ -404,12 +459,34 @@ export default function CreateLinkPage() {
             </div>
 
             <div className="flex flex-col items-center justify-center rounded-lg border bg-muted p-6">
-              <div className="flex h-32 w-32 items-center justify-center rounded-lg bg-background">
-                <QrCode className="h-14 w-14 text-muted-foreground" />
-              </div>
-              <p className="mt-3 text-sm text-muted-foreground">
-                QR code generation will be added later.
-              </p>
+              {qrCodeUrl ? (
+                <>
+                  <img
+                    src={qrCodeUrl}
+                    alt="QR code for short link"
+                    className="h-40 w-40 rounded-lg bg-white p-2"
+                  />
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="mt-4"
+                    onClick={handleDownloadQr}
+                  >
+                    Download QR Code
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <div className="flex h-32 w-32 items-center justify-center rounded-lg bg-background">
+                    <QrCode className="h-14 w-14 text-muted-foreground" />
+                  </div>
+
+                  <p className="mt-3 text-sm text-muted-foreground">
+                    QR code will appear here.
+                  </p>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
