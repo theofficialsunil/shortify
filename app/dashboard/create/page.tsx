@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
 import {
@@ -70,6 +70,20 @@ type CreateLinkResponse = {
 };
 
 export default function CreateLinkPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="mx-auto max-w-3xl py-12 text-muted-foreground">
+          Loading create link form...
+        </div>
+      }
+    >
+      <CreateLinkForm />
+    </Suspense>
+  );
+}
+
+function CreateLinkForm() {
   const searchParams = useSearchParams();
 
   const [formData, setFormData] = useState<FormData>({
