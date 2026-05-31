@@ -69,11 +69,13 @@ export const authOptions: NextAuthOptions = {
     async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
+        token.name = user.name;
         token.username = user.username;
         token.usernameSetupCompleted = user.usernameSetupCompleted;
       }
 
       if (trigger === "update" && session?.user) {
+        token.name = session.user.name ?? token.name;
         token.username = session.user.username ?? token.username;
         token.usernameSetupCompleted =
           session.user.usernameSetupCompleted ?? token.usernameSetupCompleted;
@@ -85,6 +87,7 @@ export const authOptions: NextAuthOptions = {
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.id;
+        session.user.name = token.name;
         session.user.username = token.username;
         session.user.usernameSetupCompleted = token.usernameSetupCompleted;
       }
