@@ -2,17 +2,14 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useTheme } from "next-themes";
 import {
   BarChart3,
-  CheckCircle2,
   ChevronDown,
-  Copy,
-  ExternalLink,
   Link2,
   Moon,
-  QrCode,
   ShieldCheck,
   Sparkles,
   Sun,
@@ -35,36 +32,47 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function HomePage() {
+  const router = useRouter();
+
   const [longUrl, setLongUrl] = useState("");
   const [customAlias, setCustomAlias] = useState("");
-  const [shortUrl, setShortUrl] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [urlError, setUrlError] = useState("");
 
   const { theme, setTheme } = useTheme();
   const { data: session, status } = useSession();
 
   function handleShorten() {
-    if (!longUrl) return;
+    setUrlError("");
+    setShowLoginPrompt(false);
+
+    if (!longUrl.trim()) {
+      setUrlError("Enter a URL first");
+      return;
+    }
 
     try {
       new URL(longUrl);
     } catch {
+      setUrlError("Enter a valid URL");
       return;
     }
 
-    const code = customAlias || Math.random().toString(36).substring(2, 8);
-    setShortUrl(`http://localhost:3000/s/${code}`);
-  }
+    if (!session) {
+      setShowLoginPrompt(true);
+      return;
+    }
 
-  async function handleCopy() {
-    if (!shortUrl) return;
-    await navigator.clipboard.writeText(shortUrl);
-    setCopied(true);
+    const params = new URLSearchParams({
+      url: longUrl,
+    });
 
-    setTimeout(() => {
-      setCopied(false);
-    }, 2000);
+    if (customAlias.trim()) {
+      params.set("alias", customAlias.trim());
+    }
+
+    router.push(`/dashboard/create?${params.toString()}`);
   }
 
   return (
@@ -158,7 +166,7 @@ export default function HomePage() {
           <CardHeader>
             <CardTitle>Create Short Link</CardTitle>
             <CardDescription>
-              Paste your long URL and generate a short link instantly.
+              Paste your long URL. Login is required to create real short links.
             </CardDescription>
           </CardHeader>
 
@@ -170,8 +178,15 @@ export default function HomePage() {
                 type="url"
                 placeholder="https://example.com/very-long-url"
                 value={longUrl}
-                onChange={(event) => setLongUrl(event.target.value)}
+                onChange={(event) => {
+                  setLongUrl(event.target.value);
+                  setUrlError("");
+                  setShowLoginPrompt(false);
+                }}
               />
+              {urlError && (
+                <p className="text-sm text-destructive">{urlError}</p>
+              )}
             </div>
 
             <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
@@ -192,21 +207,19 @@ export default function HomePage() {
 
                   <div className="flex items-center gap-2">
                     <span className="whitespace-nowrap text-sm text-muted-foreground">
-                      shortify.app/
+                      /s/username/
                     </span>
 
                     <Input
                       id="customAlias"
                       placeholder="resume"
                       value={customAlias}
-                      onChange={(event) =>
-                        setCustomAlias(event.target.value)
-                      }
+                      onChange={(event) => setCustomAlias(event.target.value)}
                     />
                   </div>
 
                   <p className="text-sm text-muted-foreground">
-                    Leave empty to auto-generate a short code.
+                    Login to reserve and create this custom alias.
                   </p>
                 </div>
               </CollapsibleContent>
@@ -216,43 +229,31 @@ export default function HomePage() {
               onClick={handleShorten}
               className="w-full bg-indigo-600 py-6 text-base hover:bg-indigo-700"
             >
-              Shorten URL
+              {session ? "Create in Dashboard" : "Login to Shorten URL"}
             </Button>
 
-            {shortUrl && (
-              <div className="rounded-xl border bg-card p-5">
-                <div className="mb-4 flex items-center gap-2 text-green-500">
-                  <CheckCircle2 className="h-5 w-5" />
-                  <span className="font-medium">Your short link is ready</span>
+            {showLoginPrompt && (
+              <div className="rounded-xl border bg-card p-5 text-center">
+                <div className="mb-3 flex items-center justify-center gap-2 text-indigo-500">
+                  <Link2 className="h-5 w-5" />
+                  <span className="font-medium">Login required</span>
                 </div>
 
-                <div className="flex gap-2">
-                  <Input value={shortUrl} readOnly className="font-mono" />
+                <p className="mx-auto max-w-md text-sm text-muted-foreground">
+                  Sign in to create real short links, custom aliases, QR codes,
+                  and track analytics.
+                </p>
 
-                  <Button variant="outline" size="icon" onClick={handleCopy}>
-                    {copied ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <Copy className="h-4 w-4" />
-                    )}
-                  </Button>
+                <div className="mt-5 flex justify-center gap-3">
+                  <Link href="/login">
+                    <Button variant="outline">Login</Button>
+                  </Link>
 
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => window.open(shortUrl, "_blank")}
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                <div className="mt-5 flex flex-col items-center justify-center rounded-lg border bg-background p-6">
-                  <div className="flex h-32 w-32 items-center justify-center rounded-lg bg-muted">
-                    <QrCode className="h-14 w-14 text-muted-foreground" />
-                  </div>
-                  <p className="mt-3 text-sm text-muted-foreground">
-                    QR code preview
-                  </p>
+                  <Link href="/signup">
+                    <Button className="bg-indigo-600 hover:bg-indigo-700">
+                      Create Account
+                    </Button>
+                  </Link>
                 </div>
               </div>
             )}
@@ -266,19 +267,19 @@ export default function HomePage() {
             {
               title: "Custom Short Links",
               description:
-                "Create memorable aliases like shortify.app/resume or shortify.app/portfolio.",
+                "Create memorable aliases like /s/username/resume or /s/username/portfolio.",
               icon: Link2,
             },
             {
               title: "Analytics Dashboard",
               description:
-                "Track clicks, referrers, devices, countries, and recent activity.",
+                "Track clicks, referrers, devices, browsers, operating systems, and recent activity.",
               icon: BarChart3,
             },
             {
               title: "Secure Link Controls",
               description:
-                "Add expiration dates, disable links, and protect sensitive URLs.",
+                "Add expiration dates, disable links, and manage public URLs from your dashboard.",
               icon: ShieldCheck,
             },
           ].map((feature) => {

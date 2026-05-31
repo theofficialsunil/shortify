@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import QRCode from "qrcode";
 import {
   CheckCircle2,
@@ -69,6 +70,8 @@ type CreateLinkResponse = {
 };
 
 export default function CreateLinkPage() {
+  const searchParams = useSearchParams();
+
   const [formData, setFormData] = useState<FormData>({
     longUrl: "",
     customAlias: "",
@@ -86,6 +89,19 @@ export default function CreateLinkPage() {
   >("");
   const [copied, setCopied] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    const url = searchParams.get("url");
+    const alias = searchParams.get("alias");
+
+    if (url || alias) {
+      setFormData((prev) => ({
+        ...prev,
+        longUrl: url || prev.longUrl,
+        customAlias: alias || prev.customAlias,
+      }));
+    }
+  }, [searchParams]);
 
   function handleChange(field: keyof FormData, value: string) {
     setFormData((prev) => ({
