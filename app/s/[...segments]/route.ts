@@ -17,11 +17,78 @@ import {
 import { Click } from "@/models/Click";
 import { Link } from "@/models/Link";
 
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
 type RouteContext = {
   params: Promise<{
     segments: string[];
   }>;
 };
+
+async function trackClick(request: Request, link: any) {
+  const userAgent = getUserAgent(request);
+  const referrer = getReferrer(request);
+  const ip = getClientIp(request);
+
+  const visitorId =
+    request.headers
+      .get("cookie")
+      ?.split("; ")
+      .find((cookie) => cookie.startsWith("shortify_visitor_id="))
+      ?.split("=")[1] || createTrackingId();
+
+  const sessionId =
+    request.headers
+      .get("cookie")
+      ?.split("; ")
+      .find((cookie) => cookie.startsWith("shortify_session_id="))
+      ?.split("=")[1] || createTrackingId();
+
+  const geoData = getGeoData(request);
+  const utmData = getUtmData(request);
+  const deviceData = parseUserAgent(userAgent);
+
+  await Click.create({
+    linkId: link._id,
+    userId: link.userId,
+
+    clickedAt: new Date(),
+
+    referrer,
+    refererDomain: getRefererDomain(referrer),
+
+    visitorId,
+    sessionId,
+
+    ipHash: hashIp(ip),
+
+    country: geoData.country,
+    region: geoData.region,
+    city: geoData.city,
+
+    deviceType: deviceData.deviceType,
+    browser: deviceData.browser,
+    os: deviceData.os,
+
+    language: getLanguage(request),
+
+    utmSource: utmData.utmSource,
+    utmMedium: utmData.utmMedium,
+    utmCampaign: utmData.utmCampaign,
+
+    isBot: detectBot(userAgent),
+  });
+
+  link.totalClicks += 1;
+  link.lastClickedAt = new Date();
+  await link.save();
+
+  return {
+    visitorId,
+    sessionId,
+  };
+}
 
 export async function GET(request: Request, context: RouteContext) {
   try {
@@ -61,78 +128,24 @@ export async function GET(request: Request, context: RouteContext) {
     }
 
     if (link.password) {
-      return new Response("Password-protected links will be handled later", {
-        status: 403,
-      });
+      const protectedUrl = new URL("/protected-link", request.url);
+      protectedUrl.searchParams.set("linkId", link._id.toString());
+
+      return NextResponse.redirect(protectedUrl);
     }
 
-    const userAgent = getUserAgent(request);
-    const referrer = getReferrer(request);
-    const ip = getClientIp(request);
-
-    const visitorId =
-      request.headers
-        .get("cookie")
-        ?.split("; ")
-        .find((cookie) => cookie.startsWith("shortify_visitor_id="))
-        ?.split("=")[1] || createTrackingId();
-
-    const sessionId =
-      request.headers
-        .get("cookie")
-        ?.split("; ")
-        .find((cookie) => cookie.startsWith("shortify_session_id="))
-        ?.split("=")[1] || createTrackingId();
-
-    const geoData = getGeoData(request);
-    const utmData = getUtmData(request);
-    const deviceData = parseUserAgent(userAgent);
-
-    await Click.create({
-      linkId: link._id,
-      userId: link.userId,
-
-      clickedAt: new Date(),
-
-      referrer,
-      refererDomain: getRefererDomain(referrer),
-
-      visitorId,
-      sessionId,
-
-      ipHash: hashIp(ip),
-
-      country: geoData.country,
-      region: geoData.region,
-      city: geoData.city,
-
-      deviceType: deviceData.deviceType,
-      browser: deviceData.browser,
-      os: deviceData.os,
-
-      language: getLanguage(request),
-
-      utmSource: utmData.utmSource,
-      utmMedium: utmData.utmMedium,
-      utmCampaign: utmData.utmCampaign,
-
-      isBot: detectBot(userAgent),
-    });
-
-    link.totalClicks += 1;
-    link.lastClickedAt = new Date();
-    await link.save();
+    const tracking = await trackClick(request, link);
 
     const response = NextResponse.redirect(link.originalUrl);
 
-    response.cookies.set("shortify_visitor_id", visitorId, {
+    response.cookies.set("shortify_visitor_id", tracking.visitorId, {
       httpOnly: true,
       sameSite: "lax",
       maxAge: 60 * 60 * 24 * 365,
       path: "/",
     });
 
-    response.cookies.set("shortify_session_id", sessionId, {
+    response.cookies.set("shortify_session_id", tracking.sessionId, {
       httpOnly: true,
       sameSite: "lax",
       maxAge: 60 * 30,
