@@ -41,37 +41,49 @@ export default function LoginPage() {
     }));
   }
 
+  function getLoginErrorMessage(error: string) {
+    if (error.includes("Too many login attempts")) {
+      return "Too many login attempts. Try again later.";
+    }
+
+    return "Invalid email or password";
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-  event.preventDefault();
+    event.preventDefault();
 
-  setIsLoading(true);
+    setIsLoading(true);
 
-  const result = await signIn("credentials", {
-    email: formData.email,
-    password: formData.password,
-    redirect: false,
-  });
+    try {
+      const result = await signIn("credentials", {
+        email: formData.email,
+        password: formData.password,
+        redirect: false,
+      });
 
-  setIsLoading(false);
+      if (result?.error) {
+        toast.error(getLoginErrorMessage(result.error));
+        return;
+      }
 
-  if (result?.error) {
-    toast.error("Invalid email or password");
-    return;
+      const response = await fetch("/api/user/me");
+      const data = await response.json();
+
+      toast.success("Logged in successfully");
+
+      if (data.success && data.data.usernameSetupCompleted === false) {
+        router.push("/onboarding/username");
+      } else {
+        router.push("/dashboard");
+      }
+
+      router.refresh();
+    } catch {
+      toast.error("Something went wrong");
+    } finally {
+      setIsLoading(false);
+    }
   }
-
-  const response = await fetch("/api/user/me");
-  const data = await response.json();
-
-  toast.success("Logged in successfully");
-
-  if (data.success && data.data.usernameSetupCompleted === false) {
-    router.push("/onboarding/username");
-  } else {
-    router.push("/dashboard");
-  }
-
-  router.refresh();
-}
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-6 py-12 text-foreground">
@@ -97,6 +109,7 @@ export default function LoginPage() {
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
+
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-card px-2 text-muted-foreground">
                 Or continue with email
