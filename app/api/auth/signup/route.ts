@@ -8,9 +8,23 @@ import {
 import { formatZodError } from "@/lib/validation-error";
 import { User } from "@/models/User";
 import { signupSchema } from "@/validations/auth";
+import { signupRateLimit } from "@/lib/rate-limit";
+import { getRateLimitIdentifier } from "@/lib/request";
 
 export async function POST(request: Request) {
   try {
+    const identifier = getRateLimitIdentifier(request);
+    const { success } = await signupRateLimit.limit(identifier);
+
+    if (!success) {
+      return Response.json(
+        {
+          success: false,
+          message: "Too many signup attempts. Try again later.",
+        },
+        { status: 429 }
+      );
+    }
     const body = await request.json();
 
     const parsedBody = signupSchema.safeParse(body);

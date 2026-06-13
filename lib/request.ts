@@ -110,3 +110,11 @@ export function detectBot(userAgent: string) {
 export function createTrackingId() {
   return crypto.randomUUID();
 }
+
+export function getRateLimitIdentifier(request: Request) {
+  return (
+    request.headers.get("x-forwarded-for") ||
+    request.headers.get("x-real-ip") ||
+    "anonymous"
+  );
+}

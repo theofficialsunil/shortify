@@ -18,9 +18,23 @@ import {
 } from "@/lib/request";
 import { Click } from "@/models/Click";
 import { Link } from "@/models/Link";
+import { verifyPasswordRateLimit } from "@/lib/rate-limit";
+import { getRateLimitIdentifier } from "@/lib/request";
 
 export async function POST(request: Request) {
   try {
+    const identifier = getRateLimitIdentifier(request);
+    const { success } = await verifyPasswordRateLimit.limit(identifier);
+    if (!success) {
+      return Response.json(
+        {
+          success: false,
+          message: "Too many password attempts. Try again later.",
+        },
+        { status: 429 }
+      );
+    }
+    
     const body = await request.json();
 
     const linkId = body.linkId;

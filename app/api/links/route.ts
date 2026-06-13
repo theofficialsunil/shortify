@@ -7,6 +7,8 @@ import { generateShortCode, normalizeAlias } from "@/lib/short-code";
 import { formatZodError } from "@/lib/validation-error";
 import { Link } from "@/models/Link";
 import { createLinkSchema } from "@/validations/link";
+import { createLinkRateLimit } from "@/lib/rate-limit";
+import { getRateLimitIdentifier } from "@/lib/request";
 
 const RESERVED_USER_ALIASES = [
     "new",
@@ -83,6 +85,18 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
+        const identifier = getRateLimitIdentifier(request);
+        const { success } = await createLinkRateLimit.limit(identifier);
+
+        if (!success) {
+            return Response.json(
+                {
+                success: false,
+                message: "Too many links created. Try again later.",
+                },
+                { status: 429 }
+            );
+        }
         const user = await getCurrentUser();
 
         if (!user?.id) {
