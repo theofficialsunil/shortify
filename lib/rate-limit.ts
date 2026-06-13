@@ -26,3 +26,10 @@ export const verifyPasswordRateLimit = new Ratelimit({
   analytics: true,
   prefix: "shortify_verify_password",
 });
+
+export const loginRateLimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(10, "10 m"),
+  analytics: true,
+  prefix: "shortify_login",
+});

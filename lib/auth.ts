@@ -3,6 +3,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 
 import { connectDB } from "@/lib/db";
+import { loginRateLimit } from "@/lib/rate-limit";
 import { User } from "@/models/User";
 import { loginSchema } from "@/validations/auth";
 
@@ -32,6 +33,16 @@ export const authOptions: NextAuthOptions = {
 
       async authorize(credentials) {
         const parsedCredentials = loginSchema.safeParse(credentials);
+
+        const identifier = parsedCredentials.success
+          ? parsedCredentials.data.email
+          : "invalid-login";
+
+        const { success } = await loginRateLimit.limit(identifier);
+
+        if (!success) {
+          throw new Error("Too many login attempts. Try again later.");
+        }
 
         if (!parsedCredentials.success) {
           return null;
