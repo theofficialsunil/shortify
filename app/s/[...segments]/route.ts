@@ -26,6 +26,13 @@ type RouteContext = {
   }>;
 };
 
+function redirectToStatusPage(request: Request, reason: string) {
+  const statusUrl = new URL("/link-status", request.url);
+  statusUrl.searchParams.set("reason", reason);
+
+  return NextResponse.redirect(statusUrl);
+}
+
 async function trackClick(request: Request, link: any) {
   const userAgent = getUserAgent(request);
   const referrer = getReferrer(request);
@@ -93,6 +100,9 @@ async function trackClick(request: Request, link: any) {
 export async function GET(request: Request, context: RouteContext) {
   try {
     const { segments } = await context.params;
+    if (segments.length !== 1 && segments.length !== 2) {
+      return redirectToStatusPage(request, "invalid");
+    }
 
     await connectDB();
 
@@ -102,9 +112,8 @@ export async function GET(request: Request, context: RouteContext) {
       const [slug] = segments;
 
       link = await Link.findOne({
-        shortCode: slug,
+        shortCode: slug.toLowerCase(),
         linkType: "short",
-        status: "active",
       });
     }
 
@@ -115,16 +124,19 @@ export async function GET(request: Request, context: RouteContext) {
         username: username.toLowerCase(),
         customAlias: alias.toLowerCase(),
         linkType: "custom",
-        status: "active",
       });
     }
 
     if (!link) {
-      return new Response("Short link not found", { status: 404 });
+      return redirectToStatusPage(request, "not-found");
+    }
+
+    if (link.status === "disabled") {
+      return redirectToStatusPage(request, "disabled");
     }
 
     if (link.expiresAt && new Date(link.expiresAt) < new Date()) {
-      return new Response("This short link has expired", { status: 410 });
+      return redirectToStatusPage(request, "expired");
     }
 
     if (link.password) {
@@ -156,6 +168,6 @@ export async function GET(request: Request, context: RouteContext) {
   } catch (error) {
     console.error("SHORT_REDIRECT_ERROR:", error);
 
-    return new Response("Something went wrong", { status: 500 });
+    return redirectToStatusPage(request, "error");
   }
 }
