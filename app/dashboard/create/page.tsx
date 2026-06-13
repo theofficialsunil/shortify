@@ -129,6 +129,13 @@ function CreateLinkForm() {
     }));
   }
 
+  function getCreateLinkErrorMessage(data: CreateLinkResponse) {
+    if (data.message) return data.message;
+    if (data.errors?.length) return data.errors[0].message;
+
+    return "Failed to create short link";
+  }
+
   function validateForm() {
     const nextErrors: FormErrors = {};
 
@@ -215,7 +222,7 @@ function CreateLinkForm() {
           setErrors(apiErrors);
         }
 
-        toast.error(data.message || "Failed to create link");
+        toast.error(getCreateLinkErrorMessage(data));
         return;
       }
 
@@ -233,7 +240,7 @@ function CreateLinkForm() {
       setQrCodeUrl(qrDataUrl);
       setCreatedLinkType(data.data.linkType);
 
-      toast.success("Short link created successfully");
+      toast.success(data.message || "Short link created successfully");
     } catch {
       toast.error("Something went wrong");
     } finally {

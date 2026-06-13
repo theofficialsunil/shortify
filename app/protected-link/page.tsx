@@ -47,10 +47,18 @@ function ProtectedLinkForm() {
   const linkId = searchParams.get("linkId");
 
   const [password, setPassword] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+
+  function getVerifyPasswordErrorMessage(data: VerifyPasswordResponse) {
+    if (data.message) return data.message;
+    return "Failed to verify password";
+  }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+
+    setPasswordError("");
 
     if (!linkId) {
       toast.error("Invalid protected link");
@@ -58,6 +66,7 @@ function ProtectedLinkForm() {
     }
 
     if (!password.trim()) {
+      setPasswordError("Password is required");
       toast.error("Password is required");
       return;
     }
@@ -79,7 +88,17 @@ function ProtectedLinkForm() {
       const data: VerifyPasswordResponse = await response.json();
 
       if (!response.ok) {
-        toast.error(data.message || "Failed to verify password");
+        const message = getVerifyPasswordErrorMessage(data);
+
+        if (
+          response.status === 401 ||
+          response.status === 400 ||
+          response.status === 429
+        ) {
+          setPasswordError(message);
+        }
+
+        toast.error(message);
         return;
       }
 
@@ -88,6 +107,7 @@ function ProtectedLinkForm() {
         return;
       }
 
+      toast.success("Password verified");
       window.location.href = data.data.originalUrl;
     } catch {
       toast.error("Something went wrong");
@@ -129,9 +149,17 @@ function ProtectedLinkForm() {
                     placeholder="Enter link password"
                     className="pl-10"
                     value={password}
-                    onChange={(event) => setPassword(event.target.value)}
+                    disabled={isLoading}
+                    onChange={(event) => {
+                      setPassword(event.target.value);
+                      setPasswordError("");
+                    }}
                   />
                 </div>
+
+                {passwordError && (
+                  <p className="text-sm text-destructive">{passwordError}</p>
+                )}
 
                 <FieldDescription>
                   Passwords cannot be recovered. Ask the link owner if you do

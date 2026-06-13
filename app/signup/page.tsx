@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Link2 } from "lucide-react";
-import {FaGithub } from "react-icons/fa";
+import { FaGithub } from "react-icons/fa";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,17 @@ type SignupForm = {
   email: string;
   password: string;
   confirmPassword: string;
+};
+
+type ApiError = {
+  field: string;
+  message: string;
+};
+
+type SignupResponse = {
+  success: boolean;
+  message?: string;
+  errors?: ApiError[];
 };
 
 export default function SignupPage() {
@@ -44,6 +55,12 @@ export default function SignupPage() {
     }));
   }
 
+  function getSignupErrorMessage(data: SignupResponse) {
+    if (data.message) return data.message;
+    if (data.errors?.length) return data.errors[0].message;
+    return "Failed to create account";
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
@@ -58,14 +75,14 @@ export default function SignupPage() {
         body: JSON.stringify(formData),
       });
 
-      const data = await response.json();
+      const data: SignupResponse = await response.json();
 
       if (!response.ok) {
-        toast.error(data.message || "Signup failed");
+        toast.error(getSignupErrorMessage(data));
         return;
       }
 
-      toast.success("Account created successfully");
+      toast.success(data.message || "Account created successfully");
       router.push("/login");
     } catch {
       toast.error("Something went wrong");
@@ -82,9 +99,9 @@ export default function SignupPage() {
             <Link2 className="h-6 w-6 text-white" />
           </div>
 
-          <CardTitle className="text-2xl">Create your account</CardTitle>
+          <CardTitle className="text-2xl">Create your Shortify account</CardTitle>
           <CardDescription>
-            Start managing and tracking your links with Shortify.
+            Sign up to create short links and track analytics.
           </CardDescription>
         </CardHeader>
 
@@ -114,9 +131,7 @@ export default function SignupPage() {
                   type="text"
                   placeholder="Your name"
                   value={formData.name}
-                  onChange={(event) =>
-                    handleChange("name", event.target.value)
-                  }
+                  onChange={(event) => handleChange("name", event.target.value)}
                 />
               </Field>
 
