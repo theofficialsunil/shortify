@@ -11,31 +11,107 @@ type RouteContext = {
   }>;
 };
 
-type CountMap = Record<string, number>;
+type RangeOption = "7d" | "30d" | "90d" | "all";
 
-function incrementCounter(map: CountMap, key?: string | null) {
-  const finalKey = key && key.trim() ? key : "Unknown";
-  map[finalKey] = (map[finalKey] || 0) + 1;
+function getStartDate(range: string | null) {
+  const now = new Date();
+
+  switch (range) {
+    case "7d":
+      return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    case "90d":
+      return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+    case "all":
+      return null;
+
+    case "30d":
+    default:
+      return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  }
 }
 
-function toBreakdown(map: CountMap) {
-  return Object.entries(map)
-    .map(([name, count]) => ({
-      name,
-      count,
-    }))
-    .sort((a, b) => b.count - a.count);
+function getValidRange(range: string | null): RangeOption {
+  if (range === "7d" || range === "30d" || range === "90d" || range === "all") {
+    return range;
+  }
+
+  return "30d";
 }
 
-function formatDay(date: Date) {
-  return date.toISOString().split("T")[0];
+function getShortUrl(link: any) {
+  const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+
+  if (link.linkType === "custom") {
+    return `${baseUrl}/s/${link.username}/${link.customAlias}`;
+  }
+
+  return `${baseUrl}/s/${link.shortCode}`;
 }
 
-export async function GET(_request: Request, context: RouteContext) {
+async function getBreakdown(
+  match: Record<string, unknown>,
+  field: string,
+  totalClicks: number,
+  limit = 10
+) {
+  const rows = await Click.aggregate([
+    {
+      $match: match,
+    },
+    {
+      $group: {
+        _id: `$${field}`,
+        clicks: {
+          $sum: 1,
+        },
+      },
+    },
+    {
+      $sort: {
+        clicks: -1,
+      },
+    },
+    {
+      $limit: limit,
+    },
+    {
+      $project: {
+        _id: 0,
+        label: {
+          $cond: [
+            {
+              $or: [
+                {
+                  $eq: ["$_id", null],
+                },
+                {
+                  $eq: ["$_id", ""],
+                },
+              ],
+            },
+            "Unknown",
+            "$_id",
+          ],
+        },
+        clicks: 1,
+      },
+    },
+  ]);
+
+  return rows.map((row) => ({
+    label: row.label,
+    clicks: row.clicks,
+    percentage: totalClicks > 0 ? Math.round((row.clicks / totalClicks) * 100) : 0,
+  }));
+}
+
+export async function GET(request: Request, context: RouteContext) {
   try {
-    const user = await getCurrentUser();
+    const currentUser = await getCurrentUser();
 
-    if (!user?.id) {
+    if (!currentUser?.id) {
       return Response.json(
         {
           success: false,
@@ -51,18 +127,22 @@ export async function GET(_request: Request, context: RouteContext) {
       return Response.json(
         {
           success: false,
-          message: "Invalid link id",
+          message: "Invalid link ID",
         },
         { status: 400 }
       );
     }
 
+    const url = new URL(request.url);
+    const range = getValidRange(url.searchParams.get("range"));
+    const startDate = getStartDate(range);
+
     await connectDB();
 
     const link = await Link.findOne({
       _id: id,
-      userId: user.id,
-    });
+      userId: currentUser.id,
+    }).lean();
 
     if (!link) {
       return Response.json(
@@ -74,95 +154,155 @@ export async function GET(_request: Request, context: RouteContext) {
       );
     }
 
-    const clicks = await Click.find({
-      linkId: id,
-      userId: user.id,
-    })
-      .sort({ clickedAt: -1 })
-      .lean();
+    const match: Record<string, unknown> = {
+      linkId: new Types.ObjectId(id),
+      userId: new Types.ObjectId(currentUser.id),
+    };
 
-    const deviceMap: CountMap = {};
-    const browserMap: CountMap = {};
-    const osMap: CountMap = {};
-    const countryMap: CountMap = {};
-    const regionMap: CountMap = {};
-    const cityMap: CountMap = {};
-    const referrerMap: CountMap = {};
-    const utmSourceMap: CountMap = {};
-    const dailyMap: CountMap = {};
+    if (startDate) {
+      match.clickedAt = {
+        $gte: startDate,
+      };
+    }
 
-    let botClicks = 0;
+    const [
+      totalClicks,
+      uniqueVisitors,
+      uniqueSessions,
+      humanClicks,
+      botClicks,
+      clicksOverTime,
+      recentClicks,
+    ] = await Promise.all([
+      Click.countDocuments(match),
 
-    clicks.forEach((click) => {
-      incrementCounter(deviceMap, click.deviceType);
-      incrementCounter(browserMap, click.browser);
-      incrementCounter(osMap, click.os);
-      incrementCounter(countryMap, click.country);
-      incrementCounter(regionMap, click.region);
-      incrementCounter(cityMap, click.city);
-      incrementCounter(referrerMap, click.refererDomain);
-      incrementCounter(utmSourceMap, click.utmSource || "Direct");
+      Click.distinct("visitorId", match),
 
-      if (click.isBot) {
-        botClicks++;
-      }
+      Click.distinct("sessionId", match),
 
-      const day = formatDay(new Date(click.clickedAt));
-      incrementCounter(dailyMap, day);
-    });
+      Click.countDocuments({
+        ...match,
+        isBot: false,
+      }),
 
-    const clicksOverTime = Object.entries(dailyMap)
-      .map(([date, count]) => ({
-        date,
-        count,
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-    const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
-    const shortUrl =
-      link.linkType === "custom"
-        ? `${baseUrl}/s/${link.username}/${link.customAlias}`
-        : `${baseUrl}/s/${link.shortCode}`;
+      Click.countDocuments({
+        ...match,
+        isBot: true,
+      }),
+
+      Click.aggregate([
+        {
+          $match: match,
+        },
+        {
+          $group: {
+            _id: {
+              $dateToString: {
+                format: "%Y-%m-%d",
+                date: "$clickedAt",
+              },
+            },
+            clicks: {
+              $sum: 1,
+            },
+          },
+        },
+        {
+          $sort: {
+            _id: 1,
+          },
+        },
+        {
+          $project: {
+            _id: 0,
+            date: "$_id",
+            clicks: 1,
+          },
+        },
+      ]),
+
+      Click.find(match)
+        .sort({ clickedAt: -1 })
+        .limit(10)
+        .select(
+          "clickedAt refererDomain country region city deviceType browser os language utmSource utmMedium utmCampaign isBot"
+        )
+        .lean(),
+    ]);
+
+    const [
+      devices,
+      browsers,
+      operatingSystems,
+      countries,
+      regions,
+      cities,
+      referrers,
+      utmSources,
+      utmMediums,
+      utmCampaigns,
+    ] = await Promise.all([
+      getBreakdown(match, "deviceType", totalClicks),
+      getBreakdown(match, "browser", totalClicks),
+      getBreakdown(match, "os", totalClicks),
+      getBreakdown(match, "country", totalClicks),
+      getBreakdown(match, "region", totalClicks),
+      getBreakdown(match, "city", totalClicks),
+      getBreakdown(match, "refererDomain", totalClicks),
+      getBreakdown(match, "utmSource", totalClicks),
+      getBreakdown(match, "utmMedium", totalClicks),
+      getBreakdown(match, "utmCampaign", totalClicks),
+    ]);
 
     return Response.json({
       success: true,
       data: {
+        range,
+        dateFrom: startDate,
+        dateTo: new Date(),
+
         link: {
           id: link._id.toString(),
           originalUrl: link.originalUrl,
-          shortUrl,
+          shortCode: link.shortCode || null,
+          customAlias: link.customAlias || null,
+          username: link.username || null,
           linkType: link.linkType,
+          shortUrl: getShortUrl(link),
+          description: link.description || "",
+          expiresAt: link.expiresAt,
           status: link.status,
           totalClicks: link.totalClicks,
+          passwordProtected: Boolean(link.password),
           createdAt: link.createdAt,
-          expiresAt: link.expiresAt,
-          lastClickedAt: link.lastClickedAt,
         },
 
         summary: {
-          totalClicks: clicks.length,
-          uniqueVisitors: new Set(clicks.map((click) => click.visitorId)).size,
-          sessions: new Set(clicks.map((click) => click.sessionId)).size,
+          totalClicks,
+          uniqueVisitors: uniqueVisitors.length,
+          uniqueSessions: uniqueSessions.length,
+          humanClicks,
           botClicks,
-          humanClicks: clicks.length - botClicks,
         },
 
         clicksOverTime,
 
         breakdowns: {
-          devices: toBreakdown(deviceMap),
-          browsers: toBreakdown(browserMap),
-          os: toBreakdown(osMap),
-          countries: toBreakdown(countryMap),
-          regions: toBreakdown(regionMap),
-          cities: toBreakdown(cityMap),
-          referrers: toBreakdown(referrerMap),
-          utmSources: toBreakdown(utmSourceMap),
+          devices,
+          browsers,
+          operatingSystems,
+          countries,
+          regions,
+          cities,
+          referrers,
+          utmSources,
+          utmMediums,
+          utmCampaigns,
         },
 
-        recentClicks: clicks.slice(0, 20).map((click) => ({
+        recentClicks: recentClicks.map((click) => ({
           id: click._id.toString(),
           clickedAt: click.clickedAt,
-          referrer: click.referrer,
           refererDomain: click.refererDomain,
           country: click.country,
           region: click.region,
