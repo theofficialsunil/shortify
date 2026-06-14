@@ -64,6 +64,21 @@ const ClickSchema = new Schema(
       default: "Unknown",
     },
 
+    latitude: {
+      type: Number,
+      default: null,
+    },
+
+    longitude: {
+      type: Number,
+      default: null,
+    },
+
+    timezone: {
+      type: String,
+      default: "Unknown",
+    },
+
     deviceType: {
       type: String,
       default: "desktop",
@@ -113,6 +128,9 @@ ClickSchema.index({ userId: 1, clickedAt: -1 });
 ClickSchema.index({ linkId: 1, visitorId: 1 });
 ClickSchema.index({ linkId: 1, sessionId: 1 });
 ClickSchema.index({ country: 1 });
+ClickSchema.index({ region: 1 });
+ClickSchema.index({ city: 1 });
+ClickSchema.index({ latitude: 1, longitude: 1 });
 ClickSchema.index({ deviceType: 1 });
 ClickSchema.index({ browser: 1 });
 ClickSchema.index({ os: 1 });

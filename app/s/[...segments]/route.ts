@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { connectDB } from "@/lib/db";
+import { lookupGeoByIp } from "@/lib/geo";
 import {
   createTrackingId,
   detectBot,
@@ -52,7 +53,8 @@ async function trackClick(request: Request, link: any) {
       .find((cookie) => cookie.startsWith("shortify_session_id="))
       ?.split("=")[1] || createTrackingId();
 
-  const geoData = getGeoData(request);
+  const headerGeoData = getGeoData(request);
+  const geoData = await lookupGeoByIp(ip, headerGeoData);
   const utmData = getUtmData(request);
   const deviceData = parseUserAgent(userAgent);
 
@@ -73,6 +75,9 @@ async function trackClick(request: Request, link: any) {
     country: geoData.country,
     region: geoData.region,
     city: geoData.city,
+    latitude: geoData.latitude,
+    longitude: geoData.longitude,
+    timezone: geoData.timezone,
 
     deviceType: deviceData.deviceType,
     browser: deviceData.browser,
@@ -100,6 +105,7 @@ async function trackClick(request: Request, link: any) {
 export async function GET(request: Request, context: RouteContext) {
   try {
     const { segments } = await context.params;
+
     if (segments.length !== 1 && segments.length !== 2) {
       return redirectToStatusPage(request, "invalid");
     }

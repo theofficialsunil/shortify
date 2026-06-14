@@ -2,30 +2,61 @@ import { connectDB } from "@/lib/db";
 import { getCurrentUser } from "@/lib/session";
 import { Click } from "@/models/Click";
 
-type GeoCount = {
-  name: string;
-  count: number;
-};
+async function getBreakdown(field: string, userId: string, limit = 10) {
+  const rows = await Click.aggregate([
+    {
+      $match: {
+        userId: userId,
+      },
+    },
+    {
+      $group: {
+        _id: `$${field}`,
+        clicks: {
+          $sum: 1,
+        },
+      },
+    },
+    {
+      $sort: {
+        clicks: -1,
+      },
+    },
+    {
+      $limit: limit,
+    },
+    {
+      $project: {
+        _id: 0,
+        label: {
+          $cond: [
+            {
+              $or: [
+                {
+                  $eq: ["$_id", null],
+                },
+                {
+                  $eq: ["$_id", ""],
+                },
+              ],
+            },
+            "Unknown",
+            "$_id",
+          ],
+        },
+        clicks: 1,
+      },
+    },
+  ]);
 
-function toBreakdown(map: Record<string, number>): GeoCount[] {
-  return Object.entries(map)
-    .map(([name, count]) => ({
-      name,
-      count,
-    }))
-    .sort((a, b) => b.count - a.count);
-}
-
-function addToMap(map: Record<string, number>, value?: string | null) {
-  const key = value && value.trim() ? value : "Unknown";
-  map[key] = (map[key] || 0) + 1;
+  return rows;
 }
 
 export async function GET() {
   try {
-    const user = await getCurrentUser();
+    const currentUser = await getCurrentUser();
 
-    if (!user?.id) {
+    if (!currentUser?.id) {
       return Response.json(
         {
           success: false,
@@ -37,55 +68,128 @@ export async function GET() {
 
     await connectDB();
 
-    const clicks = await Click.find({
-      userId: user.id,
-    })
-      .sort({ clickedAt: -1 })
-      .lean();
+    const [totalClicks, knownCountryClicks, knownCoordinateClicks] =
+      await Promise.all([
+        Click.countDocuments({
+          userId: currentUser.id,
+        }),
 
-    const countryMap: Record<string, number> = {};
-    const regionMap: Record<string, number> = {};
-    const cityMap: Record<string, number> = {};
+        Click.countDocuments({
+          userId: currentUser.id,
+          country: {
+            $ne: "Unknown",
+          },
+        }),
 
-    clicks.forEach((click) => {
-      addToMap(countryMap, click.country);
-      addToMap(regionMap, click.region);
-      addToMap(cityMap, click.city);
-    });
+        Click.countDocuments({
+          userId: currentUser.id,
+          latitude: {
+            $ne: null,
+          },
+          longitude: {
+            $ne: null,
+          },
+        }),
+      ]);
 
-    const countries = toBreakdown(countryMap);
-    const regions = toBreakdown(regionMap);
-    const cities = toBreakdown(cityMap);
+    const [countries, regions, cities, mapPoints, recentLocations] =
+      await Promise.all([
+        getBreakdown("country", currentUser.id, 10),
+        getBreakdown("region", currentUser.id, 10),
+        getBreakdown("city", currentUser.id, 10),
 
-    const knownCountryClicks = countries
-      .filter((item) => item.name !== "Unknown")
-      .reduce((sum, item) => sum + item.count, 0);
+        Click.aggregate([
+          {
+            $match: {
+              userId: currentUser.id,
+              latitude: {
+                $ne: null,
+              },
+              longitude: {
+                $ne: null,
+              },
+            },
+          },
+          {
+            $group: {
+              _id: {
+                latitude: "$latitude",
+                longitude: "$longitude",
+                country: "$country",
+                region: "$region",
+                city: "$city",
+              },
+              clicks: {
+                $sum: 1,
+              },
+              lastClickedAt: {
+                $max: "$clickedAt",
+              },
+            },
+          },
+          {
+            $sort: {
+              clicks: -1,
+            },
+          },
+          {
+            $limit: 100,
+          },
+          {
+            $project: {
+              _id: 0,
+              latitude: "$_id.latitude",
+              longitude: "$_id.longitude",
+              country: "$_id.country",
+              region: "$_id.region",
+              city: "$_id.city",
+              clicks: 1,
+              lastClickedAt: 1,
+            },
+          },
+        ]),
+
+        Click.find({
+          userId: currentUser.id,
+        })
+          .sort({ clickedAt: -1 })
+          .limit(20)
+          .select(
+            "clickedAt country region city latitude longitude timezone deviceType browser os refererDomain"
+          )
+          .lean(),
+      ]);
 
     const geoUnavailable =
-      clicks.length === 0 ||
-      countries.length === 0 ||
-      knownCountryClicks === 0;
+      totalClicks > 0 && knownCountryClicks === 0 && knownCoordinateClicks === 0;
 
     return Response.json({
       success: true,
       data: {
-        totalClicks: clicks.length,
+        totalClicks,
         knownCountryClicks,
+        knownCoordinateClicks,
         geoUnavailable,
+
         countries,
         regions,
         cities,
-        recentLocations: clicks.slice(0, 20).map((click) => ({
+
+        mapPoints,
+
+        recentLocations: recentLocations.map((click: any) => ({
           id: click._id.toString(),
           clickedAt: click.clickedAt,
           country: click.country || "Unknown",
           region: click.region || "Unknown",
           city: click.city || "Unknown",
+          latitude: click.latitude ?? null,
+          longitude: click.longitude ?? null,
+          timezone: click.timezone || "Unknown",
           deviceType: click.deviceType || "Unknown",
           browser: click.browser || "Unknown",
           os: click.os || "Unknown",
-          language: click.language || "Unknown",
-          isBot: Boolean(click.isBot),
+          refererDomain: click.refererDomain || "Direct",
         })),
       },
     });

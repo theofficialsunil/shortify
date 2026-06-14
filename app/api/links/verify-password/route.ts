@@ -1,14 +1,17 @@
+import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { Types } from "mongoose";
-import { NextResponse } from "next/server";
 
 import { connectDB } from "@/lib/db";
+import { lookupGeoByIp } from "@/lib/geo";
+import { verifyPasswordRateLimit } from "@/lib/rate-limit";
 import {
   createTrackingId,
   detectBot,
   getClientIp,
   getGeoData,
   getLanguage,
+  getRateLimitIdentifier,
   getRefererDomain,
   getReferrer,
   getUtmData,
@@ -18,14 +21,14 @@ import {
 } from "@/lib/request";
 import { Click } from "@/models/Click";
 import { Link } from "@/models/Link";
-import { verifyPasswordRateLimit } from "@/lib/rate-limit";
-import { getRateLimitIdentifier } from "@/lib/request";
 
 export async function POST(request: Request) {
   try {
     const identifier = getRateLimitIdentifier(request);
-    const { success } = await verifyPasswordRateLimit.limit(identifier);
-    if (!success) {
+
+    const rateLimit = await verifyPasswordRateLimit.limit(identifier);
+
+    if (!rateLimit.success) {
       return Response.json(
         {
           success: false,
@@ -34,14 +37,14 @@ export async function POST(request: Request) {
         { status: 429 }
       );
     }
-    
+
     const body = await request.json();
 
     const linkId = body.linkId;
     const password = body.password;
 
     if (!linkId || !Types.ObjectId.isValid(linkId)) {
-      return NextResponse.json(
+      return Response.json(
         {
           success: false,
           message: "Invalid link",
@@ -51,7 +54,7 @@ export async function POST(request: Request) {
     }
 
     if (!password || typeof password !== "string") {
-      return NextResponse.json(
+      return Response.json(
         {
           success: false,
           message: "Password is required",
@@ -65,7 +68,7 @@ export async function POST(request: Request) {
     const link = await Link.findById(linkId);
 
     if (!link) {
-      return NextResponse.json(
+      return Response.json(
         {
           success: false,
           message: "Link not found",
@@ -75,7 +78,7 @@ export async function POST(request: Request) {
     }
 
     if (link.status !== "active") {
-      return NextResponse.json(
+      return Response.json(
         {
           success: false,
           message: "This link is disabled",
@@ -95,7 +98,7 @@ export async function POST(request: Request) {
     }
 
     if (!link.password) {
-      return NextResponse.json({
+      return Response.json({
         success: true,
         data: {
           originalUrl: link.originalUrl,
@@ -106,7 +109,7 @@ export async function POST(request: Request) {
     const isPasswordValid = await bcrypt.compare(password, link.password);
 
     if (!isPasswordValid) {
-      return NextResponse.json(
+      return Response.json(
         {
           success: false,
           message: "Incorrect password",
@@ -133,7 +136,8 @@ export async function POST(request: Request) {
         .find((cookie) => cookie.startsWith("shortify_session_id="))
         ?.split("=")[1] || createTrackingId();
 
-    const geoData = getGeoData(request);
+    const headerGeoData = getGeoData(request);
+    const geoData = await lookupGeoByIp(ip, headerGeoData);
     const utmData = getUtmData(request);
     const deviceData = parseUserAgent(userAgent);
 
@@ -154,6 +158,9 @@ export async function POST(request: Request) {
       country: geoData.country,
       region: geoData.region,
       city: geoData.city,
+      latitude: geoData.latitude,
+      longitude: geoData.longitude,
+      timezone: geoData.timezone,
 
       deviceType: deviceData.deviceType,
       browser: deviceData.browser,
@@ -198,7 +205,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("VERIFY_LINK_PASSWORD_ERROR:", error);
 
-    return NextResponse.json(
+    return Response.json(
       {
         success: false,
         message: "Something went wrong",
