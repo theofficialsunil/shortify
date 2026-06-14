@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Link2 } from "lucide-react";
-import { FaGithub } from "react-icons/fa";
+import { FcGoogle } from "react-icons/fc";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,7 @@ export default function LoginPage() {
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   function handleChange(field: keyof LoginForm, value: string) {
     setFormData((prev) => ({
@@ -47,6 +48,14 @@ export default function LoginPage() {
     }
 
     return "Invalid email or password";
+  }
+
+  async function handleGoogleLogin() {
+    setIsGoogleLoading(true);
+
+    await signIn("google", {
+      callbackUrl: "/dashboard",
+    });
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -100,9 +109,15 @@ export default function LoginPage() {
         </CardHeader>
 
         <CardContent className="space-y-5">
-          <Button type="button" variant="outline" className="w-full" disabled>
-            <FaGithub className="mr-2 h-4 w-4" />
-            Continue with GitHub later
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            disabled={isLoading || isGoogleLoading}
+            onClick={handleGoogleLogin}
+          >
+            <FcGoogle className="mr-2 h-4 w-4" />
+            {isGoogleLoading ? "Redirecting..." : "Continue with Google"}
           </Button>
 
           <div className="relative">
@@ -148,7 +163,7 @@ export default function LoginPage() {
 
             <Button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || isGoogleLoading}
               className="w-full bg-indigo-600 hover:bg-indigo-700"
             >
               {isLoading ? "Logging in..." : "Login"}

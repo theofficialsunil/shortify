@@ -3,8 +3,9 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import { Link2 } from "lucide-react";
-import { FaGithub } from "react-icons/fa";
+import { FcGoogle } from "react-icons/fc";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -47,6 +48,7 @@ export default function SignupPage() {
   });
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   function handleChange(field: keyof SignupForm, value: string) {
     setFormData((prev) => ({
@@ -58,7 +60,16 @@ export default function SignupPage() {
   function getSignupErrorMessage(data: SignupResponse) {
     if (data.message) return data.message;
     if (data.errors?.length) return data.errors[0].message;
+
     return "Failed to create account";
+  }
+
+  async function handleGoogleSignup() {
+    setIsGoogleLoading(true);
+
+    await signIn("google", {
+      callbackUrl: "/dashboard",
+    });
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -99,22 +110,31 @@ export default function SignupPage() {
             <Link2 className="h-6 w-6 text-white" />
           </div>
 
-          <CardTitle className="text-2xl">Create your Shortify account</CardTitle>
+          <CardTitle className="text-2xl">
+            Create your Shortify account
+          </CardTitle>
           <CardDescription>
             Sign up to create short links and track analytics.
           </CardDescription>
         </CardHeader>
 
         <CardContent className="space-y-5">
-          <Button type="button" variant="outline" className="w-full" disabled>
-            <FaGithub className="mr-2 h-4 w-4" />
-            Continue with GitHub later
+          <Button
+            type="button"
+            variant="outline"
+            className="w-full"
+            disabled={isLoading || isGoogleLoading}
+            onClick={handleGoogleSignup}
+          >
+            <FcGoogle className="mr-2 h-4 w-4" />
+            {isGoogleLoading ? "Redirecting..." : "Continue with Google"}
           </Button>
 
           <div className="relative">
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
+
             <div className="relative flex justify-center text-xs uppercase">
               <span className="bg-card px-2 text-muted-foreground">
                 Or continue with email
@@ -179,7 +199,7 @@ export default function SignupPage() {
 
             <Button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || isGoogleLoading}
               className="w-full bg-indigo-600 hover:bg-indigo-700"
             >
               {isLoading ? "Creating account..." : "Create Account"}
