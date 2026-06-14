@@ -11,6 +11,7 @@ import {
   Calendar,
   Copy,
   ExternalLink,
+  FileDown,
   Globe2,
   Loader2,
   MousePointerClick,
@@ -177,6 +178,10 @@ export default function LinkAnalyticsPage() {
     }, 2000);
   }
 
+  function handleExportCsv() {
+    window.location.href = `/api/links/${params.id}/analytics/export?range=${selectedRange}`;
+  }
+
   function formatDate(value: string | null) {
     if (!value) return "All time";
     return new Date(value).toLocaleDateString();
@@ -269,6 +274,15 @@ export default function LinkAnalyticsPage() {
                   >
                     <ExternalLink className="mr-2 h-4 w-4" />
                     Open
+                  </Button>
+
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleExportCsv}
+                  >
+                    <FileDown className="mr-2 h-4 w-4" />
+                    Export CSV
                   </Button>
                 </div>
               </div>
